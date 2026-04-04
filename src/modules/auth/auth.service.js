@@ -5,9 +5,15 @@ import { ApiError } from "../../utils/ApiError.js";
 
 
 const registerService = async ({ companyName, email, password }) => {
+
+    // ✅ 1. Validate input
+    if (!companyName || !email || !password) {
+        throw new ApiError(400, "All fields are required");
+    }
     // check if user exists
+    // console.log("EMAIL:", email);
     const existingUser = await prisma.user.findUnique({
-        where: { email },
+        where: {email:email},
     });
 
     if (existingUser) {
@@ -15,7 +21,11 @@ const registerService = async ({ companyName, email, password }) => {
     }
 
     // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // const salt = await bcrypt.genSalt(10);
+    // const hashedPassword = await bcrypt.hash(password, salt);//
+
+    const hashedPassword = await bcrypt.hash(password, 10);//bcrypt generates salt automatically
+    
 
     // create tenant + admin
     const tenant = await prisma.tenant.create({
@@ -35,6 +45,11 @@ const registerService = async ({ companyName, email, password }) => {
     });
 
     const user = tenant.users[0];
+
+     // ✅ 5. Check JWT secret
+    if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is not defined");
+    }
 
     // generate JWT
     const token = jwt.sign(
